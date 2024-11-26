@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packet Capture Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 30px;
+        }
+        canvas {
+            width: 100%;
+            height: 300px;
+        }
+        table {
+            width: 100%;
+            margin: 20px 0;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Packet Capture Real-time Visualization</h1>
+    <div id="packet-count">
+        <h3>Live Traffic Data</h3>
+        <canvas id="trafficChart"></canvas>
+    </div>
+
+    <h2>Detailed Packet Information</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Packet Info</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody id="packet-data">
+            {% for packet, count in packet_data.items() %}
+            <tr>
+                <td>{{ packet }}</td>
+                <td>{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Function to update the chart with the latest data
+    function updateChartData(data) {
+        const labels = [];
+        const counts = [];
+
+        for (const key in data) {
+            if (data.hasOwnProperty(key)) {
+                labels.push(key);
+                counts.push(data[key]);
+            }
+        }
+
+        return { labels, counts };
+    }
+
+    // Create the initial chart
+    const ctx = document.getElementById('trafficChart').getContext('2d');
+    let trafficChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Traffic Count',
+                data: [],
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Function to periodically refresh the page and update data
+    function refreshData() {
+        fetch('/')
+            .then(response => response.text())
+            .then(data => {
+                const startIdx = data.indexOf('<tbody id="packet-data">');
+                const endIdx = data.indexOf('</tbody>', startIdx);
+                const tableContent = data.substring(startIdx + 24, endIdx);
+                document.getElementById('packet-data').innerHTML = tableContent;
+
+                const packetData = {{ packet_data | tojson }};
+                const chartData = updateChartData(packetData);
+                trafficChart.data.labels = chartData.labels;
+                trafficChart.data.datasets[0].data = chartData.counts;
+                trafficChart.update();
+            });
+    }
+
+    setInterval(refreshData, 1000);  // Refresh every second
+</script>
+
+</body>
+</html>
